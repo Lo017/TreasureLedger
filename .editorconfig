@@ -1,0 +1,36 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.cs]
+csharp_new_line_before_open_brace = all
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_statements = false
+resharper_csharp_keep_existing_arrangement = false
+resharper_csharp_place_simple_blocks_on_single_line = false
+resharper_csharp_place_abstract_accessorholder_on_single_line = false
+resharper_csharp_place_simple_accessorholder_on_single_line = false
+resharper_csharp_place_simple_accessor_on_single_line = false
+resharper_csharp_place_simple_property_pattern_on_single_line = false
+resharper_csharp_place_simple_initializer_on_single_line = false
+resharper_csharp_max_initializer_elements_on_line = 1
+resharper_csharp_wrap_object_and_collection_initializer_style = chop_always
+
+dotnet_naming_rule.constants_upper_case.severity = warning
+dotnet_naming_rule.constants_upper_case.symbols = constants
+dotnet_naming_rule.constants_upper_case.style = upper_case
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_style.upper_case.capitalization = all_upper
+dotnet_naming_style.upper_case.word_separator = _
+resharper_csharp_naming_rule.constants = AA_BB
+resharper_csharp_naming_rule.private_constants = AA_BB
+resharper_csharp_naming_rule.local_constants = AA_BB
+resharper_csharp_naming_rule.enum_member = AaBb
