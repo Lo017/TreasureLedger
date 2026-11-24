@@ -1,15 +1,17 @@
 {
   "Author": "Lo017",
-  "Name": "挖宝账本",
+  "Name": "TreasureLedger",
   "InternalName": "TreasureLedger",
-  "Punchline": "挖宝统计、工资结算与地图位置。",
+  "Punchline": "挖宝账本：掉落统计、工资结算，以及更多。",
   "Description": "“这是第几图了？” “不到啊。”\n\n你的挖宝一站式解决方案。用于记录挖宝掉落、进洞次数、宝库层数、下底次数，并辅助你计算工资。支持自定义图数、底薪、物品、奖金，并可选 T 位奖金和挂件收费选项。\n\n此外整合了解读宝图时的标记、挖宝会计触发器的分配提醒（支持冰冰冰）、保送提醒和选门助手等功能。支持自定义发送频道和发送内容，让你挖宝时就算当了甩手掌柜也不会把账本造个稀碎。",
   "ApplicableVersion": "any",
   "Tags": [
     "挖宝",
+    "寻宝",
     "统计",
-    "工资",
-    "地图"
+    "treasure",
+    "hunt",
+    "map"
   ],
   "LoadRequiredState": 0,
   "CanUnloadAsync": false,
