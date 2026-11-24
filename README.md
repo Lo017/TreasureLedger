@@ -54,8 +54,6 @@ T 加薪和挂件收费默认关闭，勾选后可填写具体金额。
 
 ## 宝图位置与提醒
 
-移植和复现了部分 Simple Map Tracker 和 ACT 挖宝会计的功能。
-
 解读宝图后，在“宝图位置”中查看地图名和坐标，可打开地图、标旗或发送位置到小队（默认关闭）。
 
 进洞前后遇到尚未完成分配的提示时，可发送分配提醒。两项提醒分别设置频道和文本，默认内容为 `冰冰冰<se.1>`。
@@ -117,4 +115,20 @@ TreasureLedger/
 │   └── TreasureLedger.json       —— Dalamud 插件清单
 └── TreasureLedger.slnx            —— 解决方案
 ```
+
+## 参考与致谢
+
+本项目的挖宝消息匹配规则与奖品分类移植、改写自 [ler725 的挖宝会计（ACT 插件）](https://github.com/ler725/ff14-treasure-bookkeeper)，用于记录图数、洞数、层数、金币和掉落。
+
+宝图类型与宝藏点的读取逻辑移植自 [Caraxi 的 Simple Map Tracker](https://github.com/Caraxi/SimpleMapTracker)，宝图位置解析、打开地图、标旗和地图图标等功能参考该项目实现。
+
+宝库层数的日志事件处理参考了 [yimo0908 的 TreasureForecast](https://github.com/yimo0908/TreasureForecast)。分配提醒、保送提示和随机选门参考了“选门小助手”的规则，并按 Dalamud 事件接口改写。
+
+插件基于 Dalamud 开发，并使用 FFXIVClientStructs、Lumina 和 Newtonsoft.Json 等组件。感谢这些项目的作者与维护者。
+
+具体来源、对应文件和许可信息见 [来源声明](THIRD_PARTY_NOTICES.md)。
+
+## 授权
+
+本项目的原创代码采用 [MIT 许可证](LICENSE) 授权。第三方移植、复用和参考内容的来源与许可说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
