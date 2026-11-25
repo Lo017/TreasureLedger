@@ -64,8 +64,7 @@ public static partial class TreasureParser
         }
 
         var count = loot.Groups[2].Success ? int.Parse(loot.Groups[2].Value, CultureInfo.InvariantCulture) : 1;
-        session.RecordLoot(loot.Groups[1].Value.Trim('“', '”', ' ', '\uE0BB'), count);
-        return true;
+        return session.RecordLoot(loot.Groups[1].Value.Trim('“', '”', ' ', '\uE0BB'), count);
     }
 
     [GeneratedRegex(@"打开了通往第([一二三四五六七八九\d]+)区的大门")]

@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace TreasureLedger.Data;
 
 public sealed record LootPreset(string Grade, IReadOnlyList<string> Items)
@@ -14,4 +16,9 @@ public sealed record LootPreset(string Grade, IReadOnlyList<string> Items)
         new("G18", ["幻梦武器箱", "弹性皮带", "分光性染剂", "薄亚麻布", "神话传令官布料", "运动布", "靛蓝斜纹布", "火炬", "索取小猫", "小小羊", "羊角笛"]),
         new("深层传送魔纹", ["金鲶"]), new("鞣革制的隐藏地图", ["鞣革制的隐藏地图", "雾绢", "魔石精兜帽", "莲叶", "礼服面料", "萨维奈绢布"])
     ];
+
+    public static FrozenSet<string> ItemNames
+    {
+        get;
+    } = All.SelectMany(preset => preset.Items).ToFrozenSet(StringComparer.Ordinal);
 }

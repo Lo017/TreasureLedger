@@ -35,6 +35,12 @@ public sealed class Configuration : IPluginConfiguration
         set;
     }
 
+    public bool DebugEnabled
+    {
+        get;
+        set;
+    }
+
     public bool AutoSendFlag
     {
         get;

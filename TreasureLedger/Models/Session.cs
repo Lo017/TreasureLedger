@@ -1,5 +1,6 @@
 using System.Runtime.Serialization;
 using System.Globalization;
+using TreasureLedger.Data;
 
 namespace TreasureLedger.Models;
 
@@ -41,6 +42,12 @@ public sealed class Session
         set;
     } = [];
 
+    public HashSet<string> CustomLootItems
+    {
+        get;
+        set;
+    } = new(StringComparer.Ordinal);
+
     public int MapAdjustment
     {
         get;
@@ -78,7 +85,7 @@ public sealed class Session
     [IgnoreDataMember]
     public List<LootEntry> TotalLoot =>
     [
-        .. Maps.SelectMany(map => map.Loot).Concat(LootAdjustments)
+        .. Maps.SelectMany(map => map.Loot).Concat(LootAdjustments).Where(item => IsLootAllowed(item.ItemName))
             .GroupBy(item => item.ItemName, StringComparer.Ordinal).Select(group => new LootEntry
             {
                 ItemName = group.Key,
@@ -92,6 +99,11 @@ public sealed class Session
         if (itemName.Length == 0 || change == 0)
         {
             return;
+        }
+
+        if (change > 0 && !LootPreset.ItemNames.Contains(itemName))
+        {
+            CustomLootItems.Add(itemName);
         }
 
         var quantity = TotalLoot.FirstOrDefault(item => item.ItemName == itemName)?.Quantity ?? 0;
@@ -194,6 +206,12 @@ public sealed class Session
         }
 
         current.Territory = territory;
+        var grade = TreasureMapCatalog.GetDungeonGrade(territory);
+        if (grade.Length > 0)
+        {
+            current.MapGrade = grade;
+        }
+
         current.Floor = Math.Max(1, current.Floor);
         if (territory == 725)
         {
@@ -201,11 +219,16 @@ public sealed class Session
         }
     }
 
-    public void RecordLoot(string itemName, int count)
+    public bool IsLootAllowed(string itemName)
     {
-        if (!Active || count <= 0 || string.IsNullOrWhiteSpace(itemName))
+        return LootPreset.ItemNames.Contains(itemName) || CustomLootItems.Contains(itemName);
+    }
+
+    public bool RecordLoot(string itemName, int count)
+    {
+        if (!Active || count <= 0 || !IsLootAllowed(itemName))
         {
-            return;
+            return false;
         }
 
         var current = CurrentMap;
@@ -226,5 +249,6 @@ public sealed class Session
         }
 
         item.Quantity = checked(item.Quantity + count);
+        return true;
     }
 }

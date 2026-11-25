@@ -10,6 +10,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using TreasureLedger.Maps;
 using TreasureLedger.Windows;
+using TreasureLedger.Data;
 
 namespace TreasureLedger;
 
@@ -66,9 +67,18 @@ public sealed class Plugin : IDalamudPlugin
             Save();
         }
 
+        Diagnostics = new DiagnosticService(Configuration, pluginInterface.ConfigDirectory, log);
+        foreach (var session in Configuration.History.Append(Configuration.Session))
+        {
+            foreach (var map in session.Maps.Where(map => map.MapGrade.Length == 0 && map.Territory != 0))
+            {
+                map.MapGrade = TreasureMapCatalog.GetDungeonGrade(map.Territory);
+            }
+        }
+
         notifications = new NotificationService(Configuration, chat, log);
-        Maps = new MapTracker(Configuration, data, interop, log, notifications);
-        mapReader = new TreasureMapReader(data);
+        Maps = new MapTracker(Configuration, data, interop, log, notifications, Diagnostics);
+        mapReader = new TreasureMapReader(Diagnostics);
         mainWindow = new MainWindow(this);
         windows.AddWindow(mainWindow);
         commands.AddHandler("/tledger", new CommandInfo(OnCommand)
@@ -96,6 +106,11 @@ public sealed class Plugin : IDalamudPlugin
         get;
     }
 
+    public DiagnosticService Diagnostics
+    {
+        get;
+    }
+
     public void StartSession()
     {
         var previous = Configuration.Session;
@@ -112,6 +127,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Session = new Session
         {
             Active = true,
+            CustomLootItems = new HashSet<string>(previous.CustomLootItems, StringComparer.Ordinal),
             Pay = new PaySettings
             {
                 MapGrade = previous.Pay.MapGrade,
@@ -141,6 +157,7 @@ public sealed class Plugin : IDalamudPlugin
         };
         OnTerritoryChanged(client.TerritoryType);
         Save();
+        Diagnostics.Record("SessionStart", "开始挖宝记录", client.TerritoryType);
     }
 
     public void Save()
@@ -192,6 +209,7 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             case ["stop"]:
                 Configuration.Session.Active = false;
+                Diagnostics.Record("SessionStop", "结束挖宝记录", client.TerritoryType);
                 Save();
                 Open();
                 return;
@@ -259,41 +277,55 @@ public sealed class Plugin : IDalamudPlugin
             current.Closed = true;
         }
 
+        Diagnostics.Record("TerritoryChanged", $"territory={territory}", territory);
         Save();
     }
 
     private void OnLog(ILogMessage message)
     {
-        if (Configuration.Session.Active && message.LogMessageId == 3756 &&
-            !TreasureRules.IsDungeon(client.TerritoryType))
+        try
         {
-            Configuration.Session.BeginMap();
-            Save();
-            return;
-        }
-
-        if (!Configuration.Session.Active || Configuration.Session.CurrentMap is not
+            var session = Configuration.Session;
+            if (session.Active || TreasureRules.IsDungeon(client.TerritoryType))
             {
-                Territory: > 0
-            } current)
-        {
-            return;
-        }
+                Diagnostics.RecordLog(message, client.TerritoryType);
+            }
 
-        switch (message.LogMessageId)
-        {
-            case 6998 or 9365 when message.TryGetIntParameter(0, out var round):
-                current.Floor = Math.Max(current.Floor, round + 1);
-                break;
-            case 9351 when current.Territory is 794 or 924 or 1123 or 1279:
-                current.Summons++;
-                current.Floor = Math.Max(current.Floor, current.Summons);
-                break;
-            default:
+            if (!session.Active)
+            {
                 return;
-        }
+            }
 
-        Save();
+            if (message.LogMessageId == 3756 && !TreasureRules.IsDungeon(client.TerritoryType))
+            {
+                session.BeginMap();
+                Diagnostics.Record("MapOpened", "宝箱陷阱触发", client.TerritoryType);
+                Save();
+                return;
+            }
+
+            if (session.CurrentMap is not
+                {
+                    Territory: > 0
+                } current || current.Territory != client.TerritoryType)
+            {
+                return;
+            }
+
+            int? round = message.TryGetIntParameter(0, out var value) ? value : null;
+            if (!TreasureProgress.Apply(current, message.LogMessageId, round))
+            {
+                return;
+            }
+
+            Diagnostics.Record("Progress", $"id={message.LogMessageId}; round={round}", client.TerritoryType);
+            Save();
+        }
+        catch (Exception exception)
+        {
+            log.Error(exception, "处理挖宝日志时出错");
+            Diagnostics.Record("Error", $"OnLog: {exception.Message}", client.TerritoryType);
+        }
     }
 
     private void OnDutyCompleted(IDutyStateEventArgs arguments)
@@ -310,7 +342,17 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        if (current is
+            {
+                Territory: 1279, ProgressEnded: true, Bottom: false
+            })
+        {
+            return;
+        }
+
         current.Bottom = true;
+        current.ProgressEnded = true;
+        Diagnostics.Record("DutyCompleted", "宝库完成", client.TerritoryType);
         Save();
     }
 
@@ -318,6 +360,12 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
+            if (message.LogKind == XivChatType.Party && message.SourceKind != XivChatRelationKind.LocalPlayer)
+            {
+                Maps.RecordPartyLocation(message);
+                return;
+            }
+
             if (message.LogKind is not (XivChatType.SystemMessage or XivChatType.SystemError or XivChatType.ErrorMessage
                 or XivChatType.LootNotice))
             {
@@ -325,7 +373,15 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             var text = message.OriginalMessage.ExtractText();
-            if (TreasureParser.Apply(Configuration.Session, text))
+            var applied = TreasureParser.Apply(Configuration.Session, text);
+            if (Configuration.DebugEnabled &&
+                (Configuration.Session.Active || TreasureRules.IsDungeon(client.TerritoryType)))
+            {
+                Diagnostics.Record("Chat", $"channel={message.LogKind}; applied={applied}; text={text}",
+                    client.TerritoryType);
+            }
+
+            if (applied)
             {
                 Save();
             }
@@ -350,6 +406,7 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception exception)
         {
             log.Error(exception, "处理挖宝消息时出错");
+            Diagnostics.Record("Error", $"OnChat: {exception.Message}", client.TerritoryType);
         }
     }
 

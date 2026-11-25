@@ -19,6 +19,12 @@
 
 上游 [LICENSE.md](https://github.com/yimo0908/TreasureForecast/blob/master/LICENSE.md) 为 GNU Affero General Public License v3，许可原文副本见 [LICENSES/TreasureForecast-AGPL-3.0.txt](LICENSES/TreasureForecast-AGPL-3.0.txt)。
 
+## MapPartyAssist — wrath16
+
+上游项目：[wrath16/MapPartyAssist](https://github.com/wrath16/MapPartyAssist)。
+
+`TreasureLedger/Services/TreasureProgress.cs` 的 G18 日志编号及召唤、击败、特殊阶段的区分参考上游 [DutyManager.cs](https://github.com/wrath16/MapPartyAssist/blob/master/MapPartyAssist/Services/DutyManager.cs)，结合国服 `LogMessage` 数据实现轮次记录。
+
 ## 挖宝会计 — ler725
 
 上游项目：[ler725/ff14-treasure-bookkeeper](https://github.com/ler725/ff14-treasure-bookkeeper)。

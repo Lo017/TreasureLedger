@@ -54,11 +54,15 @@ T 加薪和挂件收费默认关闭，勾选后可填写具体金额。
 
 同一奖品在相应宝图分类中分别列出，结算按物品名称累计。
 
+自动掉落统计使用与手动修正相同的物品名单。通过“其他”添加的物品也会加入统计。
+
 G17、G18 预设包含 7.4、7.5 版本新增布料，掉落来源参考[加加财富天坑](https://ff14.huijiwiki.com/wiki/Data:Instance/55012.json)和[巡梦金库](https://ff14.huijiwiki.com/wiki/Data:Instance/55013.json)的物品资料。
 
 ## 宝图位置与提醒
 
 解读宝图后，在“宝图位置”中查看地图名和坐标，可打开地图、标旗或发送位置到小队（默认关闭）。
+
+队友在小队频道发送的地图坐标会按姓名记录，使用银色宝箱标记；同一队友再次发送位置时更新对应记录。可查看、标旗、发送位置，也可移除或清空队友位置。
 
 进洞前后遇到尚未完成分配的提示时，可发送分配提醒。两项提醒分别设置频道和文本，默认内容为 `冰冰冰<se.1>`。
 
@@ -69,6 +73,12 @@ G17、G18 预设包含 7.4、7.5 版本新增布料，掉落来源参考[加加�
 分配提醒、保送提示和选门输出均支持自定义文本，频道可选“关闭”“/e 仅自己”或“/p 小队”，默认频道为 `/e`。
 
 小队消息由窗口顶部“允许向小队发消息”开关控制，默认关闭。
+
+## 测试反馈
+
+在“设置”中开启 Debug 模式，复现问题后点击“复制诊断记录”或“导出诊断记录”，将记录与实际宝图类型、开图人及出现问题的步骤一同反馈。导出后会显示文件路径。
+
+Debug 模式默认关闭，保留最近 2000 条宝图识别、层数变化、物品筛选和相关系统消息。记录保存在内存中，导出时写入本地文件；关闭模式后停止追加，卸载插件时清空内存记录。
 
 ## 命令
 
@@ -92,6 +102,7 @@ TreasureLedger/
 │   │   └── TreasureMapCatalog.cs  —— 游戏宝图类型与 Gxx 对照
 │   ├── Models/
 │   │   ├── BonusRule.cs           —— 物品奖金规则
+│   │   ├── DiagnosticEntry.cs     —— 诊断事件记录
 │   │   ├── LootEntry.cs           —— 掉落物品与数量
 │   │   ├── MapRun.cs              —— 逐图记录
 │   │   ├── NoticeChannel.cs       —— 提醒频道
@@ -101,10 +112,12 @@ TreasureLedger/
 │   │   ├── Session.cs             —— 本趟记录、统计与手动修正
 │   │   └── TreasureReminder.cs    —— 提醒类型
 │   ├── Services/
+│   │   ├── DiagnosticService.cs   —— Debug 记录、复制与导出
 │   │   ├── NotificationService.cs —— 提醒发送与小队消息开关
 │   │   ├── Payroll.cs             —— 工资与挂件费用计算
 │   │   ├── RecruitmentParser.cs   —— 招募文本解析
 │   │   ├── TreasureParser.cs      —— 挖宝消息与掉落解析
+│   │   ├── TreasureProgress.cs    —— 宝库层数与召唤轮次记录
 │   │   └── TreasureRules.cs       —— 宝库区域、分配与保送提醒规则
 │   ├── Maps/
 │   │   ├── MapLocation.cs         —— 宝图位置
@@ -127,6 +140,8 @@ TreasureLedger/
 宝图类型与宝藏点的读取逻辑移植自 [Caraxi 的 Simple Map Tracker](https://github.com/Caraxi/SimpleMapTracker)，宝图位置解析、打开地图、标旗和地图图标等功能参考该项目实现。
 
 宝库层数的日志事件处理参考了 [yimo0908 的 TreasureForecast](https://github.com/yimo0908/TreasureForecast)。分配提醒、保送提示和随机选门参考了“选门小助手”的规则，并按 Dalamud 事件接口改写。
+
+G18 召唤与完成事件的区分参考了 [wrath16 的 MapPartyAssist](https://github.com/wrath16/MapPartyAssist)，日志编号结合国服游戏数据核对。
 
 插件基于 Dalamud 开发，并使用 FFXIVClientStructs、Lumina 和 Newtonsoft.Json 等组件。感谢这些项目的作者与维护者。
 

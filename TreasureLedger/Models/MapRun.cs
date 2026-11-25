@@ -50,6 +50,18 @@ public sealed class MapRun
         set;
     }
 
+    public bool SummonActive
+    {
+        get;
+        set;
+    }
+
+    public bool ProgressEnded
+    {
+        get;
+        set;
+    }
+
     public bool Closed
     {
         get;

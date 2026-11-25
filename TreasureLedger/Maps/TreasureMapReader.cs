@@ -1,37 +1,14 @@
 using TreasureLedger.Models;
 using TreasureLedger.Data;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
-using Lumina.Excel.Sheets;
+using TreasureLedger.Services;
 
 namespace TreasureLedger.Maps;
 
-public sealed unsafe class TreasureMapReader
+public sealed unsafe class TreasureMapReader(DiagnosticService diagnostics)
 {
-    private readonly Dictionary<uint, string> grades = [];
     private DateTimeOffset nextUpdate;
-
-    public TreasureMapReader(IDataManager data)
-    {
-        foreach (var rank in data.GetExcelSheet<TreasureHuntRank>())
-        {
-            var grade = TreasureMapCatalog.GetGrade(rank.RowId);
-            if (grade.Length == 0)
-            {
-                continue;
-            }
-
-            if (rank.KeyItemName.RowId != 0)
-            {
-                grades[rank.KeyItemName.RowId] = grade;
-            }
-
-            if (rank.InstanceMap.RowId != 0)
-            {
-                grades[rank.InstanceMap.RowId] = grade;
-            }
-        }
-    }
+    private string previousObservation = string.Empty;
 
     public bool Update(Session session)
     {
@@ -51,25 +28,54 @@ public sealed unsafe class TreasureMapReader
         }
 
         string? grade = null;
+        var ambiguous = false;
+        var observations = new List<string>();
         ref var directors = ref framework->DirectorModule.DirectorList;
         for (var entry = directors.First; entry < directors.Last; entry++)
         {
             var director = entry->Value;
             if (director == null || director->EventHandlerInfo == null ||
-                director->EventHandlerInfo->EventId.ContentId != EventHandlerContent.TreasureHuntDirector ||
-                !grades.TryGetValue(director->EventItemId, out var candidate))
+                director->EventHandlerInfo->EventId.ContentId != EventHandlerContent.TreasureHuntDirector)
+            {
+                continue;
+            }
+
+            var entryId = director->EventHandlerInfo->EventId.EntryId;
+            var rank = entryId >= PARTY_DIRECTOR_OFFSET ? (uint)(entryId - PARTY_DIRECTOR_OFFSET) : entryId;
+            var candidate = TreasureMapCatalog.GetGrade(rank);
+            observations.Add($"event={entryId}; rank={rank}; grade={candidate}");
+            if (candidate.Length == 0)
             {
                 continue;
             }
 
             if (grade is not null && grade != candidate)
             {
-                return false;
+                ambiguous = true;
             }
 
             grade = candidate;
         }
 
-        return grade is not null && session.IdentifyMap(grade);
+        var observation = string.Join(" | ", observations);
+        if (observation != previousObservation)
+        {
+            previousObservation = observation;
+            diagnostics.Record("MapDirector", observation);
+        }
+
+        if (ambiguous || grade is null || !session.IdentifyMap(grade))
+        {
+            return false;
+        }
+
+        diagnostics.Record("MapIdentified", $"source=director; grade={grade}");
+        return true;
     }
+
+    #region 常量
+
+    private const int PARTY_DIRECTOR_OFFSET = 1000;
+
+    #endregion
 }

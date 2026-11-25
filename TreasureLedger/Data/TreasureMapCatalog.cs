@@ -2,6 +2,22 @@ namespace TreasureLedger.Data;
 
 public static class TreasureMapCatalog
 {
+    public static string GetDungeonGrade(uint territory)
+    {
+        return territory switch
+        {
+            588 => "G8",
+            712 or 794 => "G10",
+            725 => "深层传送魔纹",
+            879 or 924 => "G12",
+            1000 => "G14",
+            1123 => "G15",
+            1209 => "G17",
+            1279 => "G18",
+            _ => string.Empty
+        };
+    }
+
     public static string GetGrade(uint rank)
     {
         return rank switch

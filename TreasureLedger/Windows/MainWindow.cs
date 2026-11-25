@@ -25,6 +25,7 @@ public sealed class MainWindow : Window
     private string correctionError = string.Empty;
     private string recruitmentText = string.Empty;
     private string recruitmentResult = string.Empty;
+    private string diagnosticResult = string.Empty;
     private Session? history;
 
     public MainWindow(Plugin plugin) : base("挖宝账本###TreasureLedger")
@@ -472,11 +473,16 @@ public sealed class MainWindow : Window
                 ? LootPreset.All.SelectMany(preset => preset.Items)
                 : selected?.Items ?? [];
             DrawItemSelector("奖金物品", ref newItem, ref customBonusItem,
-                items.Concat(session.TotalLoot.Select(item => item.ItemName))
-                    .Except(session.Pay.Bonuses.Select(rule => rule.ItemName), StringComparer.Ordinal));
+                items.Concat(session.CustomLootItems).Except(session.Pay.Bonuses.Select(rule => rule.ItemName),
+                    StringComparer.Ordinal));
             if (ImGui.Button("添加奖金物品") && !string.IsNullOrWhiteSpace(newItem) &&
                 session.Pay.Bonuses.All(rule => rule.ItemName != newItem.Trim()))
             {
+                if (customBonusItem && !LootPreset.ItemNames.Contains(newItem.Trim()))
+                {
+                    session.CustomLootItems.Add(newItem.Trim());
+                }
+
                 session.Pay.Bonuses.Add(new BonusRule
                 {
                     ItemName = newItem.Trim()
@@ -565,11 +571,20 @@ public sealed class MainWindow : Window
 
     private void DrawMaps()
     {
-        ImGui.TextWrapped("已解读的宝图位置");
-        foreach (var location in plugin.Maps.Locations)
+        ImGui.TextWrapped("本人宝图与队友发送的位置");
+        if (plugin.Maps.Locations.Any(location => location.IsParty) && ImGui.Button("清空队友位置"))
         {
-            ImGui.PushID((int)location.Map);
-            ImGui.TextUnformatted($"{location.Zone} - ({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})");
+            plugin.Maps.Locations.RemoveAll(location => location.IsParty);
+            plugin.Maps.RefreshMarkers();
+        }
+
+        for (var index = 0; index < plugin.Maps.Locations.Count; index++)
+        {
+            var location = plugin.Maps.Locations[index];
+            ImGui.PushID(index);
+            var owner = location.IsParty ? $"{location.Owner} · " : string.Empty;
+            ImGui.TextUnformatted(
+                $"{owner}{location.Zone} - ({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})");
             ImGui.SameLine();
             if (ImGui.Button("查看"))
             {
@@ -590,12 +605,23 @@ public sealed class MainWindow : Window
             }
 
             ImGui.EndDisabled();
+            if (location.IsParty)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button("移除"))
+                {
+                    plugin.Maps.Locations.RemoveAt(index);
+                    plugin.Maps.RefreshMarkers();
+                    index--;
+                }
+            }
+
             ImGui.PopID();
         }
 
         if (plugin.Maps.Locations.Count == 0)
         {
-            ImGui.TextUnformatted("当前没有已解读的地图位置。");
+            ImGui.TextUnformatted("当前没有记录的地图位置。");
         }
     }
 
@@ -635,6 +661,40 @@ public sealed class MainWindow : Window
         ImGui.TextWrapped("使用 /tledger door 在所选频道进行选门。");
         ImGui.Separator();
         ImGui.TextUnformatted(Plugin.COMMAND_HELP);
+        ImGui.Separator();
+        var debug = configuration.DebugEnabled;
+        if (ImGui.Checkbox("Debug 模式", ref debug))
+        {
+            configuration.DebugEnabled = debug;
+            plugin.Diagnostics.Record("DebugEnabled", "开始记录诊断信息");
+            plugin.Save();
+        }
+
+        ImGui.TextWrapped("记录宝图识别、层数变化、物品筛选和相关系统消息，保留最近 2000 条。复现问题后可复制或导出记录用于反馈。");
+        ImGui.TextUnformatted($"诊断记录：{plugin.Diagnostics.Count} 条");
+        if (ImGui.Button("复制诊断记录"))
+        {
+            ImGui.SetClipboardText(plugin.Diagnostics.Snapshot());
+            diagnosticResult = "已复制诊断记录。";
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("导出诊断记录"))
+        {
+            diagnosticResult = plugin.Diagnostics.Export();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("清空诊断记录"))
+        {
+            plugin.Diagnostics.Clear();
+            diagnosticResult = string.Empty;
+        }
+
+        if (diagnosticResult.Length > 0)
+        {
+            ImGui.TextWrapped(diagnosticResult);
+        }
 
         if (changed)
         {
