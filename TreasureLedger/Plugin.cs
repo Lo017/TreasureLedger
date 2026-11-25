@@ -67,6 +67,11 @@ public sealed class Plugin : IDalamudPlugin
             Save();
         }
 
+        if (Configuration.MigrateCustomLootItems())
+        {
+            Save();
+        }
+
         Diagnostics = new DiagnosticService(Configuration, pluginInterface.ConfigDirectory, log);
         foreach (var session in Configuration.History.Append(Configuration.Session))
         {

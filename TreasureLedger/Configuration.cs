@@ -1,4 +1,5 @@
 using TreasureLedger.Models;
+using TreasureLedger.Data;
 using Dalamud.Configuration;
 
 namespace TreasureLedger;
@@ -9,7 +10,7 @@ public sealed class Configuration : IPluginConfiguration
     {
         get;
         set;
-    } = 2;
+    } = 3;
 
     public Session Session
     {
@@ -112,4 +113,24 @@ public sealed class Configuration : IPluginConfiguration
         get;
         set;
     } = true;
+
+    public bool MigrateCustomLootItems()
+    {
+        if (Version >= 3)
+        {
+            return false;
+        }
+
+        foreach (var session in History.Append(Session))
+        {
+            var names = session.LootAdjustments.Select(item => item.ItemName)
+                .Concat(session.Pay.Bonuses.Select(rule => rule.ItemName)).Concat(session.Pay.BonusPresets.Values
+                    .SelectMany(rules => rules).Select(rule => rule.ItemName));
+            session.CustomLootItems.UnionWith(names.Where(name =>
+                !string.IsNullOrWhiteSpace(name) && !LootPreset.ItemNames.Contains(name)));
+        }
+
+        Version = 3;
+        return true;
+    }
 }
