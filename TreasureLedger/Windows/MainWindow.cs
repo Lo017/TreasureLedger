@@ -266,8 +266,11 @@ public sealed class MainWindow : Window
         {
             ImGui.SameLine();
             ImGui.SetNextItemWidth(120);
-            ImGui.InputInt("##输入修正数量", ref correctionQuantity);
-            correctionQuantity = Math.Max(1, correctionQuantity);
+            var quantity = (long)correctionQuantity;
+            if (InputNumber("##输入修正数量", ref quantity))
+            {
+                correctionQuantity = (int)Math.Clamp(quantity, 1, int.MaxValue);
+            }
         }
 
         if (ImGui.Button("应用修正"))
@@ -378,29 +381,29 @@ public sealed class MainWindow : Window
             }
         }
 
-        var planned = session.Pay.PlannedMaps;
+        var planned = (long)session.Pay.PlannedMaps;
         var basePay = session.Pay.BasePay;
         var passengerEnabled = session.Pay.PassengerFeeEnabled;
         var passenger = session.Pay.PassengerFeePerBottom;
         var tankEnabled = session.Pay.TankExtraPayEnabled;
         var tankExtra = session.Pay.TankExtraPay;
-        var changed = ImGui.InputInt("约定图数", ref planned);
-        changed |= InputMoney("每人底薪（金币）", ref basePay);
+        var changed = InputNumber("约定图数", ref planned);
+        changed |= InputNumber("每人底薪（金币）", ref basePay);
         changed |= ImGui.Checkbox("T 加薪", ref tankEnabled);
         if (tankEnabled)
         {
-            changed |= InputMoney("T 固定加薪（金币）", ref tankExtra);
+            changed |= InputNumber("T 固定加薪（金币）", ref tankExtra);
         }
 
         changed |= ImGui.Checkbox("挂件收费", ref passengerEnabled);
         if (passengerEnabled)
         {
-            changed |= InputMoney("挂件每次下底付老板（金币）", ref passenger);
+            changed |= InputNumber("挂件每次下底付老板（金币）", ref passenger);
         }
 
         if (changed)
         {
-            session.Pay.PlannedMaps = Math.Max(1, planned);
+            session.Pay.PlannedMaps = (int)Math.Clamp(planned, 1, int.MaxValue);
             session.Pay.BasePay = basePay;
             session.Pay.PassengerFeeEnabled = passengerEnabled;
             session.Pay.PassengerFeePerBottom = passenger;
@@ -457,7 +460,7 @@ public sealed class MainWindow : Window
                     continue;
                 }
 
-                edited |= InputMoney("每件奖金", ref amount);
+                edited |= InputNumber("每件奖金", ref amount);
                 if (edited)
                 {
                     rule.Enabled = enabled;
@@ -571,21 +574,67 @@ public sealed class MainWindow : Window
 
     private void DrawMaps()
     {
-        ImGui.TextWrapped("本人宝图与队友发送的位置");
         if (plugin.Maps.Locations.Any(location => location.IsParty) && ImGui.Button("清空队友位置"))
         {
             plugin.Maps.Locations.RemoveAll(location => location.IsParty);
             plugin.Maps.RefreshMarkers();
         }
 
+        if (plugin.Maps.Locations.Count == 0)
+        {
+            ImGui.TextUnformatted("当前没有记录的地图位置。");
+            return;
+        }
+
+        var style = ImGui.GetStyle();
+        var nameWidth = ImGui.GetFontSize() * 8;
+        var mapWidth = ImGui.GetFontSize() * 8;
+        var coordinateWidth = ImGui.CalcTextSize("(100.0, 100.0)").X;
+        foreach (var location in plugin.Maps.Locations)
+        {
+            var name = location.IsParty ? location.Owner : plugin.Maps.PlayerName;
+            nameWidth = Math.Max(nameWidth, ImGui.CalcTextSize(name).X);
+            mapWidth = Math.Max(mapWidth, ImGui.CalcTextSize(location.Zone).X);
+            coordinateWidth = Math.Max(coordinateWidth,
+                ImGui.CalcTextSize($"({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})").X);
+        }
+
+        var buttonWidth = ImGui.CalcTextSize("查看标旗发送到小队移除").X + style.FramePadding.X * 8 + style.ItemSpacing.X * 3;
+        var cellPadding = new Vector2(style.ItemSpacing.X, style.FramePadding.Y);
+        var totalWidth = nameWidth + mapWidth + coordinateWidth + buttonWidth + cellPadding.X * 8;
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, cellPadding);
+        if (!ImGui.BeginTable("地图位置", 4,
+                ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.ScrollX,
+                Vector2.Zero, totalWidth))
+        {
+            ImGui.PopStyleVar();
+            return;
+        }
+
+        ImGui.TableSetupColumn("姓名", ImGuiTableColumnFlags.WidthFixed, nameWidth);
+        ImGui.TableSetupColumn("地图", ImGuiTableColumnFlags.WidthFixed, mapWidth);
+        ImGui.TableSetupColumn("坐标", ImGuiTableColumnFlags.WidthFixed, coordinateWidth);
+        ImGui.TableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, buttonWidth);
         for (var index = 0; index < plugin.Maps.Locations.Count; index++)
         {
             var location = plugin.Maps.Locations[index];
+            if (index > 0 && !plugin.Maps.Locations[index - 1].IsParty && location.IsParty)
+            {
+                ImGui.TableNextRow(ImGuiTableRowFlags.None, ImGui.GetTextLineHeight());
+            }
+
             ImGui.PushID(index);
-            var owner = location.IsParty ? $"{location.Owner} · " : string.Empty;
-            ImGui.TextUnformatted(
-                $"{owner}{location.Zone} - ({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})");
-            ImGui.SameLine();
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(location.IsParty ? location.Owner : plugin.Maps.PlayerName);
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(location.Zone);
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted($"({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})");
+            ImGui.TableNextColumn();
             if (ImGui.Button("查看"))
             {
                 plugin.Maps.Open(location);
@@ -619,10 +668,8 @@ public sealed class MainWindow : Window
             ImGui.PopID();
         }
 
-        if (plugin.Maps.Locations.Count == 0)
-        {
-            ImGui.TextUnformatted("当前没有记录的地图位置。");
-        }
+        ImGui.EndTable();
+        ImGui.PopStyleVar();
     }
 
     private void DrawSettings()
@@ -720,15 +767,109 @@ public sealed class MainWindow : Window
         }
     }
 
-    private static bool InputMoney(string label, ref long value)
+    private static bool InputNumber(string label, ref long value)
     {
-        var text = value.ToString(CultureInfo.InvariantCulture);
-        if (!ImGui.InputText(label, ref text, 20) || !long.TryParse(text, CultureInfo.InvariantCulture, out var amount))
+        var text = value.ToString("N0", CultureInfo.InvariantCulture);
+        if (!ImGui.InputText(label, ref text, 32,
+                ImGuiInputTextFlags.CallbackCharFilter | ImGuiInputTextFlags.CallbackEdit, FormatNumberInput))
         {
             return false;
         }
 
-        value = Math.Max(0, amount);
+        if (text.Length == 0)
+        {
+            value = 0;
+            return true;
+        }
+
+        if (!long.TryParse(text, NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var amount))
+        {
+            return false;
+        }
+
+        value = amount;
         return true;
+    }
+
+    private static int FormatNumberInput(ref ImGuiInputTextCallbackData data)
+    {
+        if (data.EventFlag == ImGuiInputTextFlags.CallbackCharFilter)
+        {
+            return data.EventChar is >= '0' and <= '9' or ',' ? 0 : 1;
+        }
+
+        var text = Encoding.UTF8.GetString(data.BufTextSpan);
+        if (!long.TryParse(text, NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var amount))
+        {
+            return 0;
+        }
+
+        var formatted = amount.ToString("N0", CultureInfo.InvariantCulture);
+        if (text == formatted)
+        {
+            return 0;
+        }
+
+        var cursorDigits = 0;
+        var selectionStartDigits = 0;
+        var selectionEndDigits = 0;
+        for (var index = 0; index < text.Length; index++)
+        {
+            if (!char.IsAsciiDigit(text[index]))
+            {
+                continue;
+            }
+
+            if (index < data.CursorPos)
+            {
+                cursorDigits++;
+            }
+
+            if (index < data.SelectionStart)
+            {
+                selectionStartDigits++;
+            }
+
+            if (index < data.SelectionEnd)
+            {
+                selectionEndDigits++;
+            }
+        }
+
+        var cursor = FindPosition(cursorDigits);
+        var selectionStart = FindPosition(selectionStartDigits);
+        var selectionEnd = FindPosition(selectionEndDigits);
+        if (selectionStart == selectionEnd && cursor < formatted.Length && formatted[cursor] == ',' &&
+            ImGui.IsKeyPressed(ImGuiKey.Delete))
+        {
+            cursor++;
+            selectionStart = cursor;
+            selectionEnd = cursor;
+        }
+
+        data.DeleteChars(0, data.BufTextLen);
+        data.InsertChars(0, formatted);
+        data.CursorPos = cursor;
+        data.SelectionStart = selectionStart;
+        data.SelectionEnd = selectionEnd;
+        return 0;
+
+        int FindPosition(int digits)
+        {
+            if (digits == 0)
+            {
+                return 0;
+            }
+
+            for (var index = 0; index < formatted.Length; index++)
+            {
+                if (char.IsAsciiDigit(formatted[index]) && --digits == 0)
+                {
+                    return index + 1;
+                }
+            }
+
+            return formatted.Length;
+        }
     }
 }

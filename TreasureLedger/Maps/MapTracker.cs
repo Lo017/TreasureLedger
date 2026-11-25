@@ -11,6 +11,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using Map = Lumina.Excel.Sheets.Map;
+using MapType = FFXIVClientStructs.FFXIV.Client.UI.Agent.MapType;
 
 namespace TreasureLedger.Maps;
 
@@ -50,6 +51,12 @@ public sealed unsafe class MapTracker : IDisposable
         get;
     } = [];
 
+    public string PlayerName
+    {
+        get;
+        private set;
+    } = string.Empty;
+
     public void Update(bool loggedIn)
     {
         if (DateTimeOffset.UtcNow < nextUpdate)
@@ -67,6 +74,7 @@ public sealed unsafe class MapTracker : IDisposable
             }
 
             previousMap = default;
+            PlayerName = string.Empty;
             return;
         }
 
@@ -76,6 +84,7 @@ public sealed unsafe class MapTracker : IDisposable
             return;
         }
 
+        PlayerName = player->CharacterNameString;
         var map = probe.Read();
         var previousLocation = Locations.FirstOrDefault(location => !location.IsParty);
         var ownLocation = Resolve(map.Rank, map.Spot);
@@ -152,7 +161,7 @@ public sealed unsafe class MapTracker : IDisposable
 
     public void Open(MapLocation location)
     {
-        AgentMap.Instance()->OpenMap(location.Map, location.Territory, location.Zone);
+        AgentMap.Instance()->OpenMap(location.Map, location.Territory, location.Zone, MapType.Centered);
     }
 
     public void SendToParty(MapLocation location)
