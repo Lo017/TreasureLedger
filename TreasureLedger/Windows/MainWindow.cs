@@ -799,12 +799,15 @@ public sealed class MainWindow : Window
         }
 
         var text = Encoding.UTF8.GetString(data.BufTextSpan);
-        if (!long.TryParse(text, NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var amount))
+        var numberText = text.Replace(",", string.Empty, StringComparison.Ordinal);
+        var amount = 0L;
+        if (numberText.Length > 0 &&
+            !long.TryParse(numberText, NumberStyles.None, CultureInfo.InvariantCulture, out amount))
         {
             return 0;
         }
 
-        var formatted = amount.ToString("N0", CultureInfo.InvariantCulture);
+        var formatted = numberText.Length == 0 ? string.Empty : amount.ToString("N0", CultureInfo.InvariantCulture);
         if (text == formatted)
         {
             return 0;
