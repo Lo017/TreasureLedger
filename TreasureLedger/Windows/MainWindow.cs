@@ -574,10 +574,12 @@ public sealed class MainWindow : Window
 
     private void DrawMaps()
     {
-        if (plugin.Maps.Locations.Any(location => location.IsParty) && ImGui.Button("清空队友位置"))
+        var hasPartyLocations = plugin.Maps.Locations.Any(location => location.IsParty);
+        if (hasPartyLocations && ImGui.Button("清空队友位置"))
         {
             plugin.Maps.Locations.RemoveAll(location => location.IsParty);
             plugin.Maps.RefreshMarkers();
+            hasPartyLocations = false;
         }
 
         if (plugin.Maps.Locations.Count == 0)
@@ -587,32 +589,33 @@ public sealed class MainWindow : Window
         }
 
         var style = ImGui.GetStyle();
-        var nameWidth = ImGui.GetFontSize() * 8;
-        var mapWidth = ImGui.GetFontSize() * 8;
-        var coordinateWidth = ImGui.CalcTextSize("(100.0, 100.0)").X;
+        var nameWidth = 0f;
+        var coordinateWidth = 0f;
         foreach (var location in plugin.Maps.Locations)
         {
             var name = location.IsParty ? location.Owner : plugin.Maps.PlayerName;
             nameWidth = Math.Max(nameWidth, ImGui.CalcTextSize(name).X);
-            mapWidth = Math.Max(mapWidth, ImGui.CalcTextSize(location.Zone).X);
             coordinateWidth = Math.Max(coordinateWidth,
                 ImGui.CalcTextSize($"({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})").X);
         }
 
-        var buttonWidth = ImGui.CalcTextSize("查看标旗发送到小队移除").X + style.FramePadding.X * 8 + style.ItemSpacing.X * 3;
-        var cellPadding = new Vector2(style.ItemSpacing.X, style.FramePadding.Y);
-        var totalWidth = nameWidth + mapWidth + coordinateWidth + buttonWidth + cellPadding.X * 8;
+        var buttonCount = hasPartyLocations ? 4 : 3;
+        var buttonText = hasPartyLocations ? "查看标旗发送到小队移除" : "查看标旗发送到小队";
+        var buttonWidth = ImGui.CalcTextSize(buttonText).X + style.FramePadding.X * buttonCount * 2 +
+                          style.ItemSpacing.X * (buttonCount - 1);
+        var cellPadding = style.FramePadding with
+        {
+            X = style.ItemSpacing.X / 2
+        };
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, cellPadding);
-        if (!ImGui.BeginTable("地图位置", 4,
-                ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.ScrollX,
-                Vector2.Zero, totalWidth))
+        if (!ImGui.BeginTable("地图位置", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoSavedSettings))
         {
             ImGui.PopStyleVar();
             return;
         }
 
         ImGui.TableSetupColumn("姓名", ImGuiTableColumnFlags.WidthFixed, nameWidth);
-        ImGui.TableSetupColumn("地图", ImGuiTableColumnFlags.WidthFixed, mapWidth);
+        ImGui.TableSetupColumn("地图", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupColumn("坐标", ImGuiTableColumnFlags.WidthFixed, coordinateWidth);
         ImGui.TableSetupColumn("操作", ImGuiTableColumnFlags.WidthFixed, buttonWidth);
         for (var index = 0; index < plugin.Maps.Locations.Count; index++)
@@ -630,7 +633,13 @@ public sealed class MainWindow : Window
             ImGui.TextUnformatted(location.IsParty ? location.Owner : plugin.Maps.PlayerName);
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
+            var mapNameWidth = ImGui.GetContentRegionAvail().X;
             ImGui.TextUnformatted(location.Zone);
+            if (ImGui.IsItemHovered() && ImGui.CalcTextSize(location.Zone).X > mapNameWidth)
+            {
+                ImGui.SetTooltip(location.Zone);
+            }
+
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted($"({location.Coordinates.X:F1}, {location.Coordinates.Y:F1})");
