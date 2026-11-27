@@ -11,7 +11,6 @@ using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using Map = Lumina.Excel.Sheets.Map;
-using MapType = FFXIVClientStructs.FFXIV.Client.UI.Agent.MapType;
 
 namespace TreasureLedger.Maps;
 
@@ -19,6 +18,7 @@ public sealed unsafe class MapTracker : IDisposable
 {
     private readonly Configuration configuration;
     private readonly IDataManager data;
+    private readonly IGameGui gameInterface;
     private readonly IPluginLog log;
     private readonly NotificationService notifications;
     private readonly MapProbe probe;
@@ -28,11 +28,12 @@ public sealed unsafe class MapTracker : IDisposable
     private DateTimeOffset nextUpdate;
     private (uint Rank, ushort Spot) previousMap;
 
-    public MapTracker(Configuration configuration, IDataManager data, IGameInteropProvider interop, IPluginLog log,
-        NotificationService notifications, DiagnosticService diagnostics)
+    public MapTracker(Configuration configuration, IDataManager data, IGameGui gameInterface,
+        IGameInteropProvider interop, IPluginLog log, NotificationService notifications, DiagnosticService diagnostics)
     {
         this.configuration = configuration;
         this.data = data;
+        this.gameInterface = gameInterface;
         this.log = log;
         this.notifications = notifications;
         this.diagnostics = diagnostics;
@@ -161,7 +162,8 @@ public sealed unsafe class MapTracker : IDisposable
 
     public void Open(MapLocation location)
     {
-        AgentMap.Instance()->OpenMap(location.Map, location.Territory, location.Zone, MapType.Centered);
+        gameInterface.OpenMapWithMapLink(new MapLinkPayload(location.Territory, location.Map,
+            (int)(location.Position.X * 1000), (int)(location.Position.Z * 1000)));
     }
 
     public void SendToParty(MapLocation location)
