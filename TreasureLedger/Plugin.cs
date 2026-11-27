@@ -29,7 +29,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly TreasureMapReader mapReader;
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commands, IChatGui chat, IClientState client,
-        IFramework framework, IDataManager data, IGameInteropProvider interop, IPluginLog log, IDutyState duty)
+        IFramework framework, IDataManager data, IGameGui gameInterface, IGameInteropProvider interop, IPluginLog log,
+        IDutyState duty)
     {
         this.pluginInterface = pluginInterface;
         this.commands = commands;
@@ -82,7 +83,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         notifications = new NotificationService(Configuration, chat, log);
-        Maps = new MapTracker(Configuration, data, interop, log, notifications, Diagnostics);
+        Maps = new MapTracker(Configuration, data, gameInterface, interop, log, notifications, Diagnostics);
         mapReader = new TreasureMapReader(Diagnostics);
         mainWindow = new MainWindow(this);
         windows.AddWindow(mainWindow);
